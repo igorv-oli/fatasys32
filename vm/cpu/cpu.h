@@ -4,6 +4,7 @@
 class CPU {
 private:
     uint32_t registers[16];
+    bool teclado_virtual[16] = { false };
     
     // Atalhos para legibilidade
     const int SP = 14;
@@ -11,6 +12,8 @@ private:
 
 public:
     CPU();
+
+    bool setTecladoVirtual(int tecla, bool estado);
 
     void setRegister(int reg, uint32_t value);
 

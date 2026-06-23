@@ -2,6 +2,10 @@
 
 Memory::Memory() { ram.resize(MEM_SIZE, 0); }
 
+const uint32_t Memory::getMemSize() {
+    return MEM_SIZE;
+}
+
 // Lê 32 bits da memória (4 bytes) tratando o alinhamento e Big-Endian
 uint32_t Memory::read32(uint32_t address) {
     if (address % 4 != 0) throw std::runtime_error("Alignment Error");

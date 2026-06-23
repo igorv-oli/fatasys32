@@ -11,6 +11,8 @@ private:
 public:
     Memory();
 
+    const uint32_t getMemSize();
+
     // Lê 32 bits da memória (4 bytes) tratando o alinhamento e Big-Endian
     uint32_t read32(uint32_t address);
 
