@@ -17,41 +17,37 @@ int main(int argc, char* argv[]) {
     Memory memory;
     CPU cpu;
 
-    // Carregar o arquivo binário do jogo (ex: jogo.bin) na memória a partir da posição 0
+    // Coloca binário do jogo na memória
     std::ifstream file("jogo.bin", std::ios::binary);
-    if (file.is_open()) {
-        std::streampos size = file.tellg();
-        file.seekg(0, std::ios::beg);
-
-        if (size <= memory.getMemSize()) {
-            uint32_t address = 0;
-            uint32_t buffer = 0;
-
-            // Lê o arquivo em blocos de 4 bytes (32 bits)
-            // reinterpret_cast é necessário porque o arquivo lê como char*
-            while (file.read(reinterpret_cast<char*>(&buffer), sizeof(uint32_t))) {
-                memory.write32(address, buffer);
-                address += 4; // Avança 4 bytes no endereço
-                buffer = 0;   // Limpa o buffer para a próxima leitura
-            }
-
-            // Tratamento caso o arquivo não seja múltiplo de 4 bytes (restou um "pedaço")
-            // gcount() diz quantos bytes foram lidos na última tentativa que falhou/terminou
-            if (file.gcount() > 0) {
-                memory.write32(address, buffer);
-                address += file.gcount();
-            }
-
-            std::cout << "Jogo carregado na RAM via write32! Total lido: " << address << " bytes." << std::endl;
-        } else {
-            std::cerr << "Erro: O jogo (" << size << " bytes) excede a memória de 16MB!" << std::endl;
-        }
-
-        file.close();
-    } else {
-        std::cerr << "Erro ao abrir o arquivo jogo.bin" << std::endl;
+    if (!file.is_open()) {
+        std::cerr << "Erro ao abrir o arquivo binario!" << std::endl;
     }
 
+    uint32_t text_start_address = 0;
+    file.read(reinterpret_cast<char*>(&text_start_address), sizeof(uint32_t));
+
+    std::cout << "O codigo (.text) comeca no endereco: 0x" 
+            << std::hex << text_start_address << std::dec << std::endl;
+
+    uint32_t data_size = text_start_address - 4; 
+    uint32_t address = 0;
+    uint32_t buffer32 = 0;
+
+    for (uint32_t i = 0; i < data_size; i += 4) {
+        if (file.read(reinterpret_cast<char*>(&buffer32), sizeof(uint32_t))) {
+            memory.write32(address, buffer32);
+            address += 4;
+        }
+    }
+
+    while (file.read(reinterpret_cast<char*>(&buffer32), sizeof(uint32_t))) {
+        memory.write32(address, buffer32);
+        address += 4;
+    }
+
+    cpu.setRegister(15, text_start_address);
+    
+    // Inicia SDL e faz as configurações de tela, renderização e textura
     SDL_Init(SDL_INIT_VIDEO);
 
     SDL_Window* janela = SDL_CreateWindow("Fantasys32", 
@@ -72,19 +68,19 @@ int main(int argc, char* argv[]) {
     SDL_Event e;
     int quit = 0;
 
+    // Loop principal da VM
     while (!quit) {
         uint32_t inicio_frame = SDL_GetTicks();
 
         // Trata eventos do teclado real e armazena para uso na instrução GKEY
         while (SDL_PollEvent(&e)) {
             if (e.type == SDL_QUIT) quit = 1;
-            // Atualizar o estado das teclas internas da VM aqui...
 
             // Detecta se uma tecla foi pressionada (true) ou solta (false)
             if (e.type == SDL_KEYDOWN || e.type == SDL_KEYUP) {
                 bool esta_pressionada = (e.type == SDL_KEYDOWN);
 
-                // ESTE É O SEU MAPA DE TECLAS:
+                // Mapa de teclas
                 switch (e.key.keysym.sym) {
                     case SDLK_LEFT:   cpu.setTecladoVirtual(0, esta_pressionada); break; // Seta para Esquerda = Tecla 0
                     case SDLK_RIGHT:  cpu.setTecladoVirtual(1, esta_pressionada); break; // Seta para Direita = Tecla 1
@@ -103,7 +99,6 @@ int main(int argc, char* argv[]) {
                     case SDLK_c:      cpu.setTecladoVirtual(14, esta_pressionada); break; // Tecla C = Tecla 14
                     case SDLK_v:      cpu.setTecladoVirtual(15, esta_pressionada); break; // Tecla V = Tecla 15
 
-                    // Você pode mapear até a tecla 15 se o projeto pedir todos os botões
                     default: break; 
                 }
             }
@@ -120,7 +115,6 @@ int main(int argc, char* argv[]) {
         }
 
         // Atualiza a tela com o conteúdo do Framebuffer
-        // Você precisará converter o formato de cor da especificação para o formato da textura SDL
         uint8_t* fb_ptr = memory.getFramebufferPtr();
         SDL_UpdateTexture(textura, NULL, fb_ptr, JANELA_LARG * sizeof(uint32_t)); // Ajustar o pitch conforme o formato de cor
         SDL_RenderClear(renderizador);
@@ -135,7 +129,7 @@ int main(int argc, char* argv[]) {
         }
     }
 
-    // Limpeza
+    // Limpeza e destruição da tela
     SDL_DestroyTexture(textura);
     SDL_DestroyRenderer(renderizador);
     SDL_DestroyWindow(janela);

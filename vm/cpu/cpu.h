@@ -6,7 +6,6 @@ private:
     uint32_t registers[16];
     bool teclado_virtual[16] = { false };
     
-    // Atalhos para legibilidade
     const int SP = 14;
     const int PC = 15;
 
@@ -19,6 +18,5 @@ public:
 
     uint32_t getRegister(int reg) const;
 
-    // Executa o ciclo de uma única instrução
     void step(Memory& memory);
 };
